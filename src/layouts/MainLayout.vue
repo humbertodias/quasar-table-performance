@@ -102,7 +102,8 @@ export default defineComponent({
       n: 0,
       refChebox: "",
       totalPage: 0,
-      pageSize: 4
+      pageSize: 100,
+      elementToScroll: null
     };
   },
   setup() {
@@ -126,6 +127,15 @@ export default defineComponent({
   created() {
     this.$bus.on("some-event", this.changeChecked);
   },
+  mounted() {
+    this.handleInfiniteScroll("myTable");
+  },
+  beforeUnmount() {
+    console.log("Main Vue destroyed");
+    (
+      document.querySelector(this.elementToScroll) ?? window
+    ).removeEventListener("scroll");
+  },
   computed: {
     title() {
       return `Treats ${this.filteredRowsCount}`;
@@ -142,6 +152,37 @@ export default defineComponent({
     }
   },
   methods: {
+    handleInfiniteScroll(tableRefName = "", elementToScroll = null) {
+      const self = this;
+      (document.querySelector(elementToScroll) ?? window).addEventListener(
+        "scroll",
+        this.handleTotalPage(tableRefName, self)
+      );
+    },
+    handleTotalPage(tableRefName, self) {
+      return () => {
+        const ref = self.$refs[tableRefName];
+        const items = ref.$el.querySelectorAll(
+          ref.grid ? ".q-table__grid-item" : "tr"
+        );
+
+        if (items?.length > 0) {
+          const lastItem = items[items.length - 1];
+          if (self.isInViewport(lastItem)) self.totalPage++;
+        }
+      };
+    },
+    isInViewport(element) {
+      const rect = element.getBoundingClientRect();
+      return (
+        rect.top >= 0 &&
+        rect.left >= 0 &&
+        rect.bottom <=
+          (window.innerHeight || document.documentElement.clientHeight) &&
+        rect.right <=
+          (window.innerWidth || document.documentElement.clientWidth)
+      );
+    },
     addObersable(tableRefname = "") {
       this.$nextTick(function () {
         const options = {
@@ -169,7 +210,7 @@ export default defineComponent({
     },
     filterMethod(rows, terms, cols, getCellValue) {
       console.log("filterMethod");
-      this.addObersable("myTable");
+      // this.addObersable("myTable");
       let filteredRows = rows;
       if (terms.checked) {
         filteredRows = rows.filter((row) => row.checked == terms.checked);
