@@ -1,15 +1,22 @@
 <template>
   <div class="q-pa-md">
-    <q-checkbox v-model="checked">Checked</q-checkbox>
-
+    <q-checkbox
+      v-model="checkedTmp"
+      @update:model-value="
+        (value, evt) => updateModelAfterTransitionEnd(value, evt, 'checked')
+      "
+      >Checked</q-checkbox
+    >
     <q-table
       :title="title"
       :rows="rows"
       :columns="columns"
-      row-key="name"
+      row-key="id"
       :filter="filter"
       :filter-method="filterMethod"
       :rows-per-page-options="rowsPerPageOptions"
+      selection="multiple"
+      v-model:selected="selected"
     >
       <template v-slot:top-right>
         <q-input
@@ -32,8 +39,15 @@
 import { defineComponent, ref } from "vue";
 // import EssentialLink from "components/EssentialLink.vue";
 import { faker } from "@faker-js/faker";
+// import { getCurrentInstance } from "vue";
 
 const columns = [
+  {
+    name: "id",
+    required: true,
+    field: "id",
+    label: "id",
+  },
   {
     name: "desc",
     required: true,
@@ -61,6 +75,7 @@ const columns = [
 
 const rows = [
   {
+    id: 0,
     name: "Frozen Yogurt",
     checked: false,
     calories: 159,
@@ -80,16 +95,21 @@ export default defineComponent({
   data() {
     return {
       checked: false,
+      checkedTmp: false,
       rowsPerPageOptions: [0],
       search: "",
       columns: columns,
       rows: rows,
-      filteredRows: [],
+      filteredRowsCount: 0,
+      selected: [],
+      n: 0,
+      refChebox: "",
     };
   },
   setup() {
-    for (var n = 0; n < 5000; ++n) {
+    for (var n = 1; n < 5000; ++n) {
       rows.push({
+        id: n,
         name: faker.name.fullName(),
         calories: Math.floor(Math.random() * 10),
         checked: Math.random() > 0.5,
@@ -104,9 +124,12 @@ export default defineComponent({
 
     return {};
   },
+  created() {
+    this.$bus.on("some-event", this.changeChecked);
+  },
   computed: {
     title() {
-      return `Title ${this.filteredRows.length}`;
+      return `Treats ${this.filteredRowsCount}`;
     },
     filter() {
       return {
@@ -124,8 +147,19 @@ export default defineComponent({
       if (terms.search) {
         filteredRows = rows.filter((row) => row.name.includes(terms.search));
       }
-      this.filteredRows = filteredRows;
+      this.filteredRowsCount = filteredRows.length;
       return filteredRows;
+    },
+    updateModelAfterTransitionEnd(value, evt, name) {
+      console.log("updateModelAfterTransitionEnd", value, evt, name);
+      const self = this;
+      const fn = (event) => {
+        console.log("Transition ended");
+        event.currentTarget.removeEventListener("transitionend", fn);
+        self[name] = value;
+        console.log("value", value);
+      };
+      evt.currentTarget.addEventListener("transitionend", fn, { once: true });
     },
   },
 });
