@@ -1,15 +1,10 @@
 <template>
   <div class="q-pa-md">
-    <q-checkbox
-      v-model="checkedTmp"
-      @update:model-value="
-        (value, evt) => updateModelAfterTransitionEnd(value, evt, 'checked')
-      "
-      >Checked</q-checkbox
-    >
+    <q-checkbox v-model="checked">Checked</q-checkbox>
+    <input type="number" v-model="pageSize" />
     <q-table
       :title="title"
-      :rows="rows"
+      :rows="visibleRows"
       :columns="columns"
       row-key="id"
       :filter="filter"
@@ -17,6 +12,8 @@
       :rows-per-page-options="rowsPerPageOptions"
       selection="multiple"
       v-model:selected="selected"
+      ref="myTable"
+      grid
     >
       <template v-slot:top-right>
         <q-input
@@ -46,7 +43,7 @@ const columns = [
     name: "id",
     required: true,
     field: "id",
-    label: "id",
+    label: "id"
   },
   {
     name: "desc",
@@ -55,7 +52,7 @@ const columns = [
     align: "left",
     field: (row) => row.name,
     format: (val) => `${val}`,
-    sortable: true,
+    sortable: true
   },
   { name: "checked", label: "Checked", field: "checked" },
   {
@@ -63,14 +60,14 @@ const columns = [
     align: "center",
     label: "Calories",
     field: "calories",
-    sortable: true,
+    sortable: true
   },
   { name: "fat", label: "Fat (g)", field: "fat", sortable: true },
   { name: "carbs", label: "Carbs (g)", field: "carbs" },
   { name: "random1", label: "random1", field: "random1" },
   { name: "random2", label: "random2", field: "random2" },
   { name: "random3", label: "random3", field: "random3" },
-  { name: "random4", label: "random4", field: "random4" },
+  { name: "random4", label: "random4", field: "random4" }
 ];
 
 const rows = [
@@ -84,8 +81,8 @@ const rows = [
     random1: 1,
     random2: 2,
     random3: 3,
-    random4: 4,
-  },
+    random4: 4
+  }
 ];
 
 export default defineComponent({
@@ -104,6 +101,9 @@ export default defineComponent({
       selected: [],
       n: 0,
       refChebox: "",
+      totalPage: 0,
+      pageSize: 100,
+      elementToScroll: null
     };
   },
   setup() {
@@ -118,7 +118,7 @@ export default defineComponent({
         random1: faker.name.fullName(),
         random2: faker.name.fullName(),
         random3: faker.name.fullName(),
-        random4: faker.name.fullName(),
+        random4: faker.name.fullName()
       });
     }
 
@@ -127,6 +127,15 @@ export default defineComponent({
   created() {
     this.$bus.on("some-event", this.changeChecked);
   },
+  mounted() {
+    this.handleInfiniteScroll("myTable");
+  },
+  beforeUnmount() {
+    console.log("Main Vue destroyed");
+    (
+      document.querySelector(this.elementToScroll) ?? window
+    ).removeEventListener("scroll");
+  },
   computed: {
     title() {
       return `Treats ${this.filteredRowsCount}`;
@@ -134,12 +143,74 @@ export default defineComponent({
     filter() {
       return {
         checked: this.checked,
-        search: this.search,
+        search: this.search
       };
     },
+    visibleRows() {
+      console.log("visibleRows");
+      return this.rows.slice(0, (this.totalPage + 1) * this.pageSize);
+    }
   },
   methods: {
+    handleInfiniteScroll(tableRefName = "", elementToScroll = null) {
+      const self = this;
+      (document.querySelector(elementToScroll) ?? window).addEventListener(
+        "scroll",
+        this.handleTotalPage(tableRefName, self)
+      );
+    },
+    handleTotalPage(tableRefName, self) {
+      return () => {
+        const ref = self.$refs[tableRefName];
+        const items = ref.$el.querySelectorAll(
+          ref.grid ? ".q-table__grid-item" : "tr"
+        );
+
+        if (items?.length > 0) {
+          const lastItem = items[items.length - 1];
+          if (self.isInViewport(lastItem)) self.totalPage++;
+        }
+      };
+    },
+    isInViewport(element) {
+      const rect = element.getBoundingClientRect();
+      return (
+        rect.top >= 0 &&
+        rect.left >= 0 &&
+        rect.bottom <=
+          (window.innerHeight || document.documentElement.clientHeight) &&
+        rect.right <=
+          (window.innerWidth || document.documentElement.clientWidth)
+      );
+    },
+    addObersable(tableRefname = "") {
+      this.$nextTick(function () {
+        const options = {
+          root: null,
+          rootMargin: "15px",
+          threshold: 1.0
+        };
+
+        const observer = new IntersectionObserver((entries, observer) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              this.totalPage++;
+              console.log(entry.target);
+              observer.unobserve(entry.target);
+            }
+          });
+        }, options);
+        const ref = this.$refs[tableRefname];
+        const items =
+          ref.grid === true
+            ? ref.$el.querySelectorAll(".q-table__grid-item")
+            : ref.$el.querySelectorAll("tr");
+        if (items?.length > 1) observer.observe(items[items.length - 1]);
+      });
+    },
     filterMethod(rows, terms, cols, getCellValue) {
+      console.log("filterMethod");
+      // this.addObersable("myTable");
       let filteredRows = rows;
       if (terms.checked) {
         filteredRows = rows.filter((row) => row.checked == terms.checked);
@@ -148,6 +219,7 @@ export default defineComponent({
         filteredRows = rows.filter((row) => row.name.includes(terms.search));
       }
       this.filteredRowsCount = filteredRows.length;
+      this.filteredRows = filteredRows;
       return filteredRows;
     },
     updateModelAfterTransitionEnd(value, evt, name) {
@@ -160,7 +232,7 @@ export default defineComponent({
         console.log("value", value);
       };
       evt.currentTarget.addEventListener("transitionend", fn, { once: true });
-    },
-  },
+    }
+  }
 });
 </script>
