@@ -1,5 +1,9 @@
 <template>
   <div class="q-pa-md">
+    Page size
+    <input type="number" v-model="pageSize" />
+    <q-checkbox v-model="grid">Grid</q-checkbox>
+    <br />
     <q-checkbox
       v-model="checkedTmp"
       @update:model-value="
@@ -10,10 +14,10 @@
             () => (this.checked = value)
           )
       "
-      >Checked</q-checkbox
+      >Checked Async</q-checkbox
     >
-    <q-checkbox v-model="checked">Checked</q-checkbox>
-    <input type="number" v-model="pageSize" />
+    <q-checkbox v-model="checked">Checked Sync</q-checkbox>
+
     <q-table
       :title="title"
       :rows="rows"
@@ -25,7 +29,7 @@
       selection="multiple"
       v-model:selected="selected"
       ref="myTable"
-      grid
+      :grid="grid"
     >
       <template v-slot:top-right>
         <q-input
@@ -66,7 +70,13 @@ const columns = [
     format: (val) => `${val}`,
     sortable: true,
   },
-  { name: "checked", label: "Checked", field: "checked" },
+  {
+    name: "checked",
+    label: "Checked",
+    field: (row) => row.checked,
+    format: (val) => `${val}`,
+    sortable: true,
+  },
   {
     name: "calories",
     align: "center",
@@ -103,6 +113,7 @@ export default defineComponent({
   components: {},
   data() {
     return {
+      grid: true,
       checked: false,
       checkedTmp: false,
       rowsPerPageOptions: [0],
@@ -145,17 +156,13 @@ export default defineComponent({
   },
   computed: {
     title() {
-      return `Treats ${this.visibleRows.length}`;
+      return `Treats ${this.rows.length}`;
     },
     filter() {
       return {
         checked: this.checked,
         search: this.search,
       };
-    },
-    visibleRows() {
-      console.log("visibleRows");
-      return this.rows.slice(0, (this.totalPage + 1) * this.pageSize);
     },
   },
   methods: {
