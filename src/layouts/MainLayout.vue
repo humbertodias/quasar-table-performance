@@ -31,6 +31,7 @@
       v-model:selected="selected"
       ref="myTable"
       :grid="grid"
+      style="height: 500px"
     >
       <template v-slot:top-right>
         <q-input
@@ -48,7 +49,7 @@
     </q-table>
   </div>
 </template>
-
+<style></style>
 <script>
 import { defineComponent, ref } from "vue";
 // import EssentialLink from "components/EssentialLink.vue";
@@ -114,7 +115,7 @@ export default defineComponent({
   components: {},
   data() {
     return {
-      grid: true,
+      grid: false,
       checked: false,
       checkedTmp: false,
       rowsPerPageOptions: [0],
@@ -151,7 +152,9 @@ export default defineComponent({
     this.$bus.on("some-event", this.changeChecked);
   },
   mounted() {
-    this.handleInfiniteScroll("myTable");
+    this.$nextTick(() => {
+      this.handleInfiniteScroll("myTable", this.$refs.myTable.$el);
+    });
   },
   beforeUnmount() {
     this.unHandleInfiniteScroll("myTable");
@@ -168,41 +171,39 @@ export default defineComponent({
     },
   },
   methods: {
-    handleInfiniteScroll(tableRefName) {
-      const self = this;
-      window.addEventListener(
-        "scroll",
-        this.handleTotalPage(tableRefName, self)
+    handleInfiniteScroll() {
+      const qtableScrollElem = document.getElementsByClassName(
+        "q-table__middle scroll"
       );
+      console.log(qtableScrollElem);
+      const elementToScroll =
+        qtableScrollElem.length > 0 ? qtableScrollElem[0] : window;
+      elementToScroll.addEventListener("scroll", (event) => {
+        if (elementToScroll == window) {
+          let documentHeight = document.body.scrollHeight;
+          let currentScroll = window.scrollY + window.innerHeight;
+          console.log(documentHeight, currentScroll);
+          // When the user is [modifier]px from the bottom, fire the event.
+          let modifier = 200;
+          if (currentScroll + modifier > documentHeight) {
+            console.log("You are at the bottom!");
+            this.totalPage++;
+          }
+        } else {
+          const { scrollHeight, scrollTop, clientHeight } = event.target;
+          console.log(scrollHeight, scrollTop, clientHeight);
+          if (Math.abs(scrollHeight - clientHeight - scrollTop) < 1) {
+            console.log("scrolled");
+            this.totalPage++;
+          }
+        }
+      });
     },
     unHandleInfiniteScroll(tableRefName) {
       const self = this;
       window.removeEventListener(
         "scroll",
         this.handleTotalPage(tableRefName, self)
-      );
-    },
-    handleTotalPage(tableRefName, self) {
-      return () => {
-        const ref = self.$refs[tableRefName];
-        const selector = ref.grid ? ".q-table__grid-item" : "tr";
-        const items = ref.$el.querySelectorAll(selector);
-
-        if (items?.length > 0) {
-          const lastItem = items[items.length - 1];
-          if (self.isInViewport(lastItem)) self.totalPage++;
-        }
-      };
-    },
-    isInViewport(element) {
-      const rect = element.getBoundingClientRect();
-      return (
-        rect.top >= 0 &&
-        rect.left >= 0 &&
-        rect.bottom <=
-          (window.innerHeight || document.documentElement.clientHeight) &&
-        rect.right <=
-          (window.innerWidth || document.documentElement.clientWidth)
       );
     },
     addObersable(tableRefname) {
