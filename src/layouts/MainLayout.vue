@@ -176,8 +176,6 @@ export default defineComponent({
       );
     },
     unHandleInfiniteScroll(tableRefName) {
-      console.log("Main Vue destroyed");
-
       const self = this;
       window.removeEventListener(
         "scroll",
@@ -233,17 +231,16 @@ export default defineComponent({
     filterMethod(rows, terms, cols, getCellValue) {
       console.log("filterMethod");
       // this.addObersable("myTable");
-      if (terms.checked) {
-        return this.pagination(
-          rows.filter((row) => row.checked == terms.checked)
-        );
-      }
       if (terms.search) {
         return this.pagination(
-          rows.filter((row) => this.hasRowValue(row, terms.search))
+          rows
+            .filter((row) => this.hasRowValue(row, terms.search))
+            .filter((row) => row.checked == terms.checked)
         );
       }
-      return this.pagination(rows);
+      return this.pagination(
+        rows.filter((row) => row.checked == terms.checked)
+      );
     },
 
     pagination(rows) {
