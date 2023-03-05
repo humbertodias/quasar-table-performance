@@ -2,6 +2,7 @@
   <div class="q-pa-md">
     Page size
     <input type="number" v-model="pageSize" />
+    Total page {{ this.totalPage }}
     <q-checkbox v-model="grid">Grid</q-checkbox>
     <br />
     <q-checkbox
@@ -125,6 +126,7 @@ export default defineComponent({
       refChebox: "",
       totalPage: 0,
       pageSize: 100,
+      rowsPaginationCount: 0,
     };
   },
   setup() {
@@ -156,7 +158,7 @@ export default defineComponent({
   },
   computed: {
     title() {
-      return `Treats ${this.rows.length}`;
+      return `Treats ${this.rowsPaginationCount}/${this.rows.length}`;
     },
     filter() {
       return {
@@ -245,7 +247,12 @@ export default defineComponent({
     },
 
     pagination(rows) {
-      return rows.slice(0, (this.totalPage + 1) * this.pageSize);
+      const rowsPagination = rows.slice(
+        0,
+        (this.totalPage + 1) * this.pageSize
+      );
+      this.rowsPaginationCount = rowsPagination.length;
+      return rowsPagination;
     },
 
     hasRowValue(row, search) {
