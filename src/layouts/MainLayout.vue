@@ -115,7 +115,7 @@ export default defineComponent({
   components: {},
   data() {
     return {
-      grid: false,
+      grid: true,
       checked: false,
       checkedTmp: false,
       rowsPerPageOptions: [0],
@@ -134,7 +134,9 @@ export default defineComponent({
     return {};
   },
   watch: {
-    grid: function () {},
+    grid: function (value) {
+      this.handleInfiniteScroll();
+    },
   },
   created() {
     for (var n = 1; n <= 5000; ++n) {
@@ -142,12 +144,7 @@ export default defineComponent({
     }
   },
   mounted() {
-    this.$nextTick(() => {
-      this.handleInfiniteScroll("myTable", this.$refs.myTable.$el);
-    });
-  },
-  beforeUnmount() {
-    this.unHandleInfiniteScroll("myTable");
+    this.handleInfiniteScroll("myTable", this.$refs.myTable.$el);
   },
   computed: {
     title() {
@@ -180,35 +177,36 @@ export default defineComponent({
       };
     },
     handleInfiniteScroll() {
-      const qtableScrollElem = document.getElementsByClassName(
-        "q-table__middle scroll"
-      );
-      const elementToScroll =
-        qtableScrollElem.length > 0 ? qtableScrollElem[0] : window;
-      elementToScroll.addEventListener("scroll", (event) => {
-        if (elementToScroll == window) {
-          let documentHeight = document.body.scrollHeight;
-          let currentScroll = window.scrollY + window.innerHeight;
-          let rowHeight = 40;
-          if (currentScroll + rowHeight > documentHeight) {
-            console.log("[Desktop] You are at the bottom!");
-            this.totalPage++;
+      console.log("handleInfiniteScroll");
+      this.$nextTick(() => {
+        const qtableScrollElem = document.getElementsByClassName(
+          "q-table__middle scroll"
+        );
+        const elementToScroll =
+          qtableScrollElem.length > 0 ? qtableScrollElem[0] : window;
+
+        const fnAddScroll = (event) => {
+          if (elementToScroll == window) {
+            let documentHeight = document.body.scrollHeight;
+            let currentScroll = window.scrollY + window.innerHeight;
+            let rowHeight = 40;
+            if (currentScroll + rowHeight > documentHeight) {
+              console.log("[Grid] You are at the bottom!");
+              this.totalPage++;
+            }
+          } else {
+            const { scrollHeight, scrollTop, clientHeight } = event.target;
+            if (Math.abs(scrollHeight - clientHeight - scrollTop) < 1) {
+              console.log("[Table] You are at the bottom!");
+              this.totalPage++;
+            }
           }
-        } else {
-          const { scrollHeight, scrollTop, clientHeight } = event.target;
-          if (Math.abs(scrollHeight - clientHeight - scrollTop) < 1) {
-            console.log("[Mobile] You are at the bottom!");
-            this.totalPage++;
-          }
-        }
+        };
+        console.log("current.elementToScroll", elementToScroll);
+        window.removeEventListener("scroll", fnAddScroll);
+        elementToScroll.removeEventListener("scroll", fnAddScroll);
+        elementToScroll.addEventListener("scroll", fnAddScroll);
       });
-    },
-    unHandleInfiniteScroll(tableRefName) {
-      const self = this;
-      window.removeEventListener(
-        "scroll",
-        this.handleTotalPage(tableRefName, self)
-      );
     },
     addObersable(tableRefname) {
       this.$nextTick(function () {
