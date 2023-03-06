@@ -54,7 +54,7 @@
 import { defineComponent, ref } from "vue";
 // import EssentialLink from "components/EssentialLink.vue";
 import { faker } from "@faker-js/faker";
-// import { getCurrentInstance } from "vue";
+import { date } from "quasar";
 
 const columns = [
   {
@@ -80,6 +80,20 @@ const columns = [
     sortable: true,
   },
   {
+    name: "hour",
+    label: "Hour",
+    field: (row) => row.hour,
+    format: (val) => `${val}`,
+    sortable: true,
+  },
+  {
+    name: "time",
+    label: "Time",
+    field: (row) => row.time,
+    format: (val) => `${val}`,
+    sortable: true,
+  },
+  {
     name: "calories",
     align: "center",
     label: "Calories",
@@ -93,21 +107,7 @@ const columns = [
   { name: "random3", label: "random3", field: "random3" },
   { name: "random4", label: "random4", field: "random4" },
 ];
-
-const rows = [
-  {
-    id: 0,
-    name: "Frozen Yogurt",
-    checked: false,
-    calories: 159,
-    fat: 6.0,
-    carbs: 24,
-    random1: 1,
-    random2: 2,
-    random3: 3,
-    random4: 4,
-  },
-];
+const rows = [];
 
 export default defineComponent({
   name: "MainLayout",
@@ -126,30 +126,20 @@ export default defineComponent({
       n: 0,
       refChebox: "",
       totalPage: 0,
-      pageSize: 100,
+      pageSize: 10,
       rowsPaginationCount: 0,
     };
   },
   setup() {
-    for (var n = 1; n < 5000; ++n) {
-      rows.push({
-        id: n,
-        name: faker.name.fullName(),
-        calories: Math.floor(Math.random() * 10),
-        checked: Math.random() > 0.5,
-        fat: Math.floor(Math.random() * 10),
-        carbs: Math.floor(Math.random() * 10),
-        random1: faker.name.fullName(),
-        random2: faker.name.fullName(),
-        random3: faker.name.fullName(),
-        random4: faker.name.fullName(),
-      });
-    }
-
     return {};
   },
+  watch: {
+    grid: function () {},
+  },
   created() {
-    this.$bus.on("some-event", this.changeChecked);
+    for (var n = 1; n <= 5000; ++n) {
+      rows.push(this.createRow(n));
+    }
   },
   mounted() {
     this.$nextTick(() => {
@@ -171,29 +161,43 @@ export default defineComponent({
     },
   },
   methods: {
+    createRow(n) {
+      const createdAt = Date.now();
+      return {
+        id: n,
+        name: faker.name.fullName(),
+        calories: Math.floor(Math.random() * 10),
+        checked: Math.random() > 0.5,
+        createdAt: createdAt,
+        hour: date.formatDate(createdAt, "YYYY-MM-DD"),
+        time: date.formatDate(createdAt, "HH:mm:ss.SSSZ"),
+        fat: Math.floor(Math.random() * 10),
+        carbs: Math.floor(Math.random() * 10),
+        random1: faker.name.fullName(),
+        random2: faker.name.fullName(),
+        random3: faker.name.fullName(),
+        random4: faker.name.fullName(),
+      };
+    },
     handleInfiniteScroll() {
       const qtableScrollElem = document.getElementsByClassName(
         "q-table__middle scroll"
       );
-      console.log(qtableScrollElem);
       const elementToScroll =
         qtableScrollElem.length > 0 ? qtableScrollElem[0] : window;
       elementToScroll.addEventListener("scroll", (event) => {
         if (elementToScroll == window) {
           let documentHeight = document.body.scrollHeight;
           let currentScroll = window.scrollY + window.innerHeight;
-          console.log(documentHeight, currentScroll);
-          // When the user is [modifier]px from the bottom, fire the event.
-          let modifier = 200;
-          if (currentScroll + modifier > documentHeight) {
-            console.log("You are at the bottom!");
+          let rowHeight = 40;
+          if (currentScroll + rowHeight > documentHeight) {
+            console.log("[Desktop] You are at the bottom!");
             this.totalPage++;
           }
         } else {
           const { scrollHeight, scrollTop, clientHeight } = event.target;
-          console.log(scrollHeight, scrollTop, clientHeight);
           if (Math.abs(scrollHeight - clientHeight - scrollTop) < 1) {
-            console.log("scrolled");
+            console.log("[Mobile] You are at the bottom!");
             this.totalPage++;
           }
         }
@@ -243,16 +247,20 @@ export default defineComponent({
         rows.filter((row) => row.checked == terms.checked)
       );
     },
-
     pagination(rows) {
       const rowsPagination = rows.slice(
         0,
         (this.totalPage + 1) * this.pageSize
       );
       this.rowsPaginationCount = rowsPagination.length;
-      return rowsPagination;
+      return rowsPagination.sort(this.sortRowsByCheckedAndDate);
     },
-
+    sortRowsByCheckedAndDate(a, b) {
+      return (
+        Number(a.checked) - Number(b.checked) ||
+        new Date(a.createdAt) - new Date(b.createdAt)
+      );
+    },
     hasRowValue(row, search) {
       const values = Object.values(row);
       const lowerSearch = ("" + search).toLocaleUpperCase();
